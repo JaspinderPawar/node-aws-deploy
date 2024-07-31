@@ -18,8 +18,6 @@ jobs:
       - checkout
       - node/install:
           node-version: '18.19'
-      - node/test:
-          test-results-for: jest
   ci:
     machine:
       image: ubuntu-2204:current
@@ -31,10 +29,11 @@ jobs:
             equal: [uat, << pipeline.parameters.build >>]
           steps:  
             - run:
-                name: Run Tests with Newman
-                command: |
-                  docker logs tidal-api 
-                  newman run postman/ci-collection.json -k
+                name: Install Node dependencies
+                command: npm install
+            - run:
+                name: Run Tests
+                command: npm test
 
   cd:
     docker:
