@@ -1,0 +1,66 @@
+version: 2.1
+orbs:
+  node: circleci/node@5.2.0
+parameters:
+  build:
+    type: enum
+    enum: [uat]
+    default: uat
+  tag:
+    type: string
+    default: latest
+
+jobs:
+  run-tests:
+    docker:
+      - image: cimg/base:stable
+    steps:
+      - checkout
+      - node/install:
+          node-version: '18.19'
+      - node/test:
+          test-results-for: jest
+  ci:
+    machine:
+      image: ubuntu-2204:current
+    resource_class: medium   
+    working_directory: ~/code
+    steps: 
+      - when:
+          condition:
+            equal: [uat, << pipeline.parameters.build >>]
+          steps:  
+            - run:
+                name: Run Tests with Newman
+                command: |
+                  docker logs tidal-api 
+                  newman run postman/ci-collection.json -k
+
+  cd:
+    docker:
+      - image: arvindr226/alpine-ssh
+    parameters:
+      environment:
+        type: string
+        default: 'uat'
+    steps:
+      - run:
+          name: Build Project Artifacts
+          command: ssh -oStrictHostKeyChecking=no -v $USER@$DNS "./deploy.sh"
+
+workflows:
+  uat:
+    when:
+      equal: [uat, << pipeline.parameters.build >>]
+    jobs:
+      - ci:
+          filters:
+            branches:
+              only:
+                - main
+      - cd:
+          environment: uat
+          requires:
+            - ci
+
+  
